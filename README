@@ -1,0 +1,28 @@
+This is Perl module WebService::Iinelog.
+
+INSTALLATION
+
+WebService::Iinelog installation is straightforward. If your git is set up
+you should just be able to do
+
+    %  git clone https://Likk@github.com/Likk/WebService-Iinelog.git ./
+
+Download it, unpack it, then build it as per the usual:
+
+    % cd WebService-Iinelog.git
+    % perl Makefile.PL
+    % make && make test
+
+Then install it:
+
+    % make install
+
+DOCUMENTATION
+
+WebService::Iinelog documentation is available as in POD. So you can do:
+
+    % perldoc WebService::Iinelog
+
+to read the documentation online with your favorite pager.
+
+likkradyus
