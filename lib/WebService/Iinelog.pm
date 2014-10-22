@@ -179,9 +179,12 @@ sub conf {
     unless ($self->{conf}){
         my $base_url =  $self->base_url();
         my $conf = {
-            enter   =>      sprintf("%s/users/sign_in", $base_url),
-            say     =>      sprintf("%s/items",         $base_url),
-            tl      =>      sprintf("%s/items?page=",   $base_url),
+            home    =>      $base_url,
+            enter   =>      sprintf("%s/users/sign_in",  $base_url),
+            say     =>      sprintf("%s/items",          $base_url),
+            tl      =>      sprintf("%s/items?page=",    $base_url),
+            like    =>      sprintf("%s/likes?item_id=", $base_url),
+            dislike =>      sprintf("%s/likes/", $base_url),
         };
         $self->{conf} = $conf;
     }
@@ -263,9 +266,94 @@ sub say {
     }
 }
 
+=head2 like
+
+favor a description.
+
+=cut
+
+sub like {
+    my $self    = shift;
+    my $post_id = shift;
+    die 'require post_id' unless $post_id;
+
+    my $authenticity_token = $self->_get_authenticity_token();
+
+    my $headers = {
+        'X-CSRF-Token'     => $authenticity_token,
+        'Accept'           => "*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript",
+        'Host'             => 'iinelog.com',
+        'X-Requested-With' => 'XMLHttpRequest',
+    };
+
+    for my $key (keys %$headers ){
+        $self->mech->add_header($key => $headers->{$key});
+    }
+
+    my $url = $self->conf->{like} . $post_id;
+    $self->mech->post($url);
+
+    for my $key (keys %$headers ){
+        $self->mech->delete_header($key);
+    }
+
+}
+
+=head2 dislike
+
+reset to favor a description.
+
+=cut
+
+sub dislike {
+    my $self    = shift;
+    my $post_id = shift;
+    die 'require favor_id' unless $post_id;
+
+    my $authenticity_token = $self->_get_authenticity_token();
+
+    my $headers = {
+        'X-CSRF-Token'     => $authenticity_token,
+        'Accept'           => "*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript",
+        'Host'             => 'iinelog.com',
+        'X-Requested-With' => 'XMLHttpRequest',
+    };
+
+    for my $key (keys %$headers ){
+        $self->mech->add_header($key => $headers->{$key});
+    }
+
+    my $url = $self->conf->{dislike} . $post_id;
+    $self->mech->delete($url);
+
+    for my $key (keys %$headers ){
+        $self->mech->delete_header($key);
+    }
+}
+
 =head1 PRIVATE METHODS.
 
 =over
+
+=item get_authenticity_token
+
+parse authenticity_token
+
+=cut
+
+sub _get_authenticity_token {
+    my $self = shift;
+    my $authenticity_token = '';
+
+    $self->get($self->conf->{home});
+    if($self->last_content() =~ m{<meta\scontent="(.*)?"\sname="csrf-token"\s/>}){
+        $authenticity_token = $1;
+    }
+    else {
+        die 'cant get authenticity_token';
+    }
+    return $authenticity_token;
+}
 
 =item B<_parse>
 
