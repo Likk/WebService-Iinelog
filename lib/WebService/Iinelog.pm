@@ -31,6 +31,7 @@ use warnings;
 use utf8;
 use Carp;
 use Encode;
+use HTTP::Date;
 use Web::Scraper;
 use WWW::Mechanize;
 use YAML;
@@ -57,7 +58,7 @@ sub new {
     my $self = bless { %args }, $class;
 
     $self->{last_req} ||= time;
-    $self->{interval} ||= 1;
+    $self->{interval} ||= 2;
 
     $self->mech();
     return $self;
@@ -279,11 +280,15 @@ sub _parse {
 
     my $scraper = scraper {
         process '//div[@class="item"]', 'data[]'=> scraper {
-            process '//div[@class="like-button-unpressed"]/a', post_id     => '@href';
-            process '//div[@class="item-content"]',            description => 'TEXT';
-            process '//ul[@class="item-info"]/li[1]',          posted_at   => 'TEXT';
-            process '//ul[@class="item-info"]/li[2]/a',        username    => 'TEXT',
-                                                               user_id      => '@href';
+            process '//div[@class="like-button-unpressed"]/a',                post_id     => '@href';
+            process '//div[@class="item-content"]',                           description => 'TEXT';
+            process '//ul[@class="item-info"]/li[@class="item-created-at"]',  timestamp   => '@title';
+            process '//ul[@class="item-info"]/li[2]/a',                       user_name   => 'TEXT',
+                                                                              user_id     => '@href';
+            process '//div[@class="liked-users"]/a', 'favorites[]' => scraper{
+                process '//*', user_name => '@title',
+                               user_id   => '@href';
+           };
         };
         result qw/data/;
     };
@@ -293,10 +298,21 @@ sub _parse {
         my $line = {
             user_id     => [ split m{/}, $row->{user_id}  ]->[-1],
             description => $row->{description},
-            username    => [split /\s/,  $row->{username} ]->[0],
-            timestamp   => $row->{posted_at},
+            user_name   => [split /\s/,  $row->{user_name} ]->[0],
+            timestamp   => HTTP::Date::str2time($row->{timestamp}),
             post_id     => [split /=/, $row->{post_id},   ]->[-1],
         };
+        if(my $favorites = $row->{favorites}){
+            $favorites = [
+                map {
+                    {
+                        user_name => [ split /\s/, $_->{user_name} ]->[0],
+                        user_id   => [ split m{/}, $_->{user_id}  ]->[-1],
+                    };
+                } @{ $favorites }
+            ];
+            $line->{favorites} = $favorites;
+        }
         push @$tl, $line;
     }
     return $tl;
